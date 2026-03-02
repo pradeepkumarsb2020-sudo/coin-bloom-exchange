@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { COINS, formatPrice } from "@/data/coins";
 import { addTransaction, getTransactions, Transaction } from "@/data/transactions";
-import { Copy, ArrowUpRight, ArrowDownLeft, Send, ChevronDown } from "lucide-react";
+import { Copy, ArrowUpRight, ArrowDownLeft, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";

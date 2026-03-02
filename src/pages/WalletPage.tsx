@@ -137,36 +137,38 @@ const WalletPage = () => {
   const srcBalance = transferDirection === "toWallet" ? (user?.balance?.[selectedCoin] || 0) : (user?.walletBalance?.[selectedCoin] || 0);
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-background pb-16">
       <TopBar />
-      <div className="max-w-lg mx-auto px-4 py-4 space-y-4">
+      <div className="max-w-lg mx-auto px-4 py-3 space-y-4">
         {/* Header with Exchange/Wallet toggle */}
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-foreground">Exchange</h1>
-          <div className="flex items-center gap-2">
-            <span className="text-xs bg-primary text-primary-foreground px-3 py-1.5 rounded-full font-medium">
+          <h1 className="text-lg font-bold text-foreground">Exchange</h1>
+          <div className="flex bg-secondary rounded-lg overflow-hidden">
+            <span className="text-xs bg-primary text-primary-foreground px-4 py-1.5 font-semibold">
               Exchange
             </span>
-            <button onClick={() => navigate("/assets")} className="text-xs bg-secondary text-muted-foreground px-3 py-1.5 rounded-full hover:text-foreground transition-colors">
+            <button onClick={() => navigate("/assets")} className="text-xs text-muted-foreground px-4 py-1.5 font-medium hover:text-foreground transition-colors">
               Wallet
             </button>
           </div>
         </div>
 
         {/* Balance */}
-        <div className="glass-card rounded-xl p-5 glow-primary">
-          <p className="text-sm text-muted-foreground">Exchange Balance</p>
-          <p className="text-3xl font-bold font-mono text-foreground">${totalValue.toFixed(2)}</p>
-          <p className="text-xs text-muted-foreground mt-1">Wallet: {user?.walletAddress?.slice(0, 10)}...{user?.walletAddress?.slice(-6)}</p>
-          <button onClick={() => { navigator.clipboard.writeText(user?.walletAddress || ""); toast.success("Address copied!"); }} className="mt-1 text-xs text-primary flex items-center gap-1">
-            <Copy className="h-3 w-3" /> Copy Address
-          </button>
+        <div className="pt-1">
+          <p className="text-[10px] text-muted-foreground mb-0.5">Est. Total Value (USDT)</p>
+          <p className="text-2xl font-bold font-mono text-foreground">${totalValue.toFixed(2)}</p>
+          <p className="text-[10px] text-muted-foreground">≈ ₹{(totalValue * 83.5).toLocaleString("en-IN", { maximumFractionDigits: 0 })}</p>
+          <div className="flex items-center gap-2 mt-1">
+            <button onClick={() => { navigator.clipboard.writeText(user?.walletAddress || ""); toast.success("Address copied!"); }} className="text-[10px] text-primary flex items-center gap-1">
+              <Copy className="h-3 w-3" /> {user?.walletAddress?.slice(0, 8)}...{user?.walletAddress?.slice(-4)}
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 overflow-x-auto pb-1">
+        <div className="flex gap-1 overflow-x-auto pb-1 -mx-1 px-1">
           {(["assets", "deposit", "withdraw", "transfer", "internal", "history"] as WalletTab[]).map((t) => (
-            <button key={t} onClick={() => setTab(t)} className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${tab === t ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"}`}>
+            <button key={t} onClick={() => setTab(t)} className={`px-3 py-1.5 rounded-lg text-[11px] font-medium whitespace-nowrap transition-colors ${tab === t ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground border border-border"}`}>
               {t === "internal" ? "Exchange↔Wallet" : t.charAt(0).toUpperCase() + t.slice(1)}
             </button>
           ))}
@@ -174,53 +176,52 @@ const WalletPage = () => {
 
         {/* Assets Tab */}
         {tab === "assets" && (
-          <div className="glass-card rounded-xl overflow-hidden">
-            {holdings.length === 0 && <p className="p-4 text-center text-muted-foreground text-sm">No assets yet</p>}
+          <div className="bg-card rounded-xl overflow-hidden border border-border">
+            {holdings.length === 0 && <p className="p-4 text-center text-muted-foreground text-xs">No assets yet</p>}
             {holdings.map((h) => (
               <div key={h.symbol} className="flex items-center justify-between px-4 py-3 border-b border-border last:border-0">
-                <div><p className="text-sm font-semibold text-foreground">{h.symbol}</p><p className="text-xs text-muted-foreground">${formatPrice(h.price)}</p></div>
-                <div className="text-right"><p className="text-sm font-mono text-foreground">{h.amount.toFixed(h.amount < 1 ? 6 : 2)}</p><p className="text-xs text-muted-foreground">${h.value.toFixed(2)}</p></div>
+                <div><p className="text-sm font-semibold text-foreground">{h.symbol}</p><p className="text-[10px] text-muted-foreground">${formatPrice(h.price)}</p></div>
+                <div className="text-right"><p className="text-sm font-mono text-foreground">{h.amount.toFixed(h.amount < 1 ? 6 : 2)}</p><p className="text-[10px] text-muted-foreground">${h.value.toFixed(2)}</p></div>
               </div>
             ))}
           </div>
         )}
 
-        {/* Internal Transfer Tab (Exchange ↔ Wallet) */}
+        {/* Internal Transfer Tab */}
         {tab === "internal" && (
-          <div className="glass-card rounded-xl p-4 space-y-4">
-            {/* Direction Toggle */}
+          <div className="bg-card rounded-xl p-4 space-y-3 border border-border">
             <div className="flex items-center gap-3 p-3 bg-secondary rounded-lg">
               <div className="flex-1 text-center">
-                <p className="text-[10px] text-muted-foreground uppercase">From</p>
+                <p className="text-[9px] text-muted-foreground uppercase tracking-wider">From</p>
                 <p className="text-sm font-semibold text-foreground">{transferDirection === "toWallet" ? "Exchange" : "Wallet"}</p>
               </div>
-              <button onClick={() => setTransferDirection(d => d === "toWallet" ? "toExchange" : "toWallet")} className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center hover:bg-primary/30 transition-colors">
+              <button onClick={() => setTransferDirection(d => d === "toWallet" ? "toExchange" : "toWallet")} className="h-9 w-9 rounded-full bg-primary/20 flex items-center justify-center hover:bg-primary/30 transition-colors">
                 <ArrowLeftRight className="h-4 w-4 text-primary" />
               </button>
               <div className="flex-1 text-center">
-                <p className="text-[10px] text-muted-foreground uppercase">To</p>
+                <p className="text-[9px] text-muted-foreground uppercase tracking-wider">To</p>
                 <p className="text-sm font-semibold text-foreground">{transferDirection === "toWallet" ? "Wallet" : "Exchange"}</p>
               </div>
             </div>
 
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Coin</label>
+              <label className="text-[10px] text-muted-foreground mb-1 block">Coin</label>
               <select value={selectedCoin} onChange={(e) => setSelectedCoin(e.target.value)} className="w-full bg-secondary text-foreground border border-border rounded-lg px-3 py-2 text-sm">
                 {COINS.slice(0, 30).map((c) => <option key={c.symbol} value={c.symbol}>{c.symbol} - {c.name}</option>)}
               </select>
             </div>
 
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">
-                Amount (Available: {srcBalance.toFixed(4)} {selectedCoin})
+              <label className="text-[10px] text-muted-foreground mb-1 block">
+                Amount (Avbl: {srcBalance.toFixed(4)} {selectedCoin})
               </label>
               <div className="flex gap-2">
-                <Input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" type="number" className="bg-secondary border-border font-mono flex-1" />
-                <Button variant="outline" size="sm" onClick={() => setAmount(srcBalance.toString())} className="border-border text-xs">MAX</Button>
+                <Input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" type="number" className="bg-secondary border-border font-mono flex-1 h-9 text-sm" />
+                <Button variant="outline" size="sm" onClick={() => setAmount(srcBalance.toString())} className="border-primary text-primary text-[10px] h-9">MAX</Button>
               </div>
             </div>
 
-            <Button onClick={doInternalTransfer} className="w-full bg-primary text-primary-foreground font-semibold">
+            <Button onClick={doInternalTransfer} className="w-full bg-primary text-primary-foreground font-semibold h-10">
               <ArrowLeftRight className="h-4 w-4 mr-2" /> Transfer
             </Button>
           </div>
@@ -228,29 +229,29 @@ const WalletPage = () => {
 
         {/* Deposit Tab */}
         {tab === "deposit" && (
-          <div className="glass-card rounded-xl p-4 space-y-4">
+          <div className="bg-card rounded-xl p-4 space-y-3 border border-border">
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Coin</label>
+              <label className="text-[10px] text-muted-foreground mb-1 block">Coin</label>
               <select value={selectedCoin} onChange={(e) => setSelectedCoin(e.target.value)} className="w-full bg-secondary text-foreground border border-border rounded-lg px-3 py-2 text-sm">
                 {COINS.slice(0, 30).map((c) => <option key={c.symbol} value={c.symbol}>{c.symbol} - {c.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Network</label>
+              <label className="text-[10px] text-muted-foreground mb-1 block">Network</label>
               <select value={selectedNetwork} onChange={(e) => setSelectedNetwork(e.target.value)} className="w-full bg-secondary text-foreground border border-border rounded-lg px-3 py-2 text-sm">
                 {coin.networks.map((n) => <option key={n} value={n}>{n}</option>)}
               </select>
             </div>
             <div className="p-3 bg-secondary rounded-lg">
-              <p className="text-xs text-muted-foreground mb-1">Deposit Address ({selectedNetwork})</p>
-              <p className="text-xs font-mono text-foreground break-all">{coin.depositAddress}</p>
-              <button onClick={() => { navigator.clipboard.writeText(coin.depositAddress); toast.success("Copied!"); }} className="mt-2 text-xs text-primary flex items-center gap-1"><Copy className="h-3 w-3" /> Copy</button>
+              <p className="text-[10px] text-muted-foreground mb-1">Deposit Address ({selectedNetwork})</p>
+              <p className="text-[10px] font-mono text-foreground break-all">{coin.depositAddress}</p>
+              <button onClick={() => { navigator.clipboard.writeText(coin.depositAddress); toast.success("Copied!"); }} className="mt-2 text-[10px] text-primary flex items-center gap-1"><Copy className="h-3 w-3" /> Copy</button>
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Amount</label>
-              <Input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" type="number" className="bg-secondary border-border font-mono" />
+              <label className="text-[10px] text-muted-foreground mb-1 block">Amount</label>
+              <Input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" type="number" className="bg-secondary border-border font-mono h-9 text-sm" />
             </div>
-            <Button onClick={doDeposit} className="w-full bg-primary text-primary-foreground font-semibold">
+            <Button onClick={doDeposit} className="w-full bg-primary text-primary-foreground font-semibold h-10">
               <ArrowDownLeft className="h-4 w-4 mr-2" /> Deposit
             </Button>
           </div>
@@ -258,28 +259,28 @@ const WalletPage = () => {
 
         {/* Withdraw Tab */}
         {tab === "withdraw" && (
-          <div className="glass-card rounded-xl p-4 space-y-4">
+          <div className="bg-card rounded-xl p-4 space-y-3 border border-border">
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Coin</label>
+              <label className="text-[10px] text-muted-foreground mb-1 block">Coin</label>
               <select value={selectedCoin} onChange={(e) => setSelectedCoin(e.target.value)} className="w-full bg-secondary text-foreground border border-border rounded-lg px-3 py-2 text-sm">
                 {COINS.slice(0, 30).map((c) => <option key={c.symbol} value={c.symbol}>{c.symbol} - {c.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Network</label>
+              <label className="text-[10px] text-muted-foreground mb-1 block">Network</label>
               <select value={selectedNetwork} onChange={(e) => setSelectedNetwork(e.target.value)} className="w-full bg-secondary text-foreground border border-border rounded-lg px-3 py-2 text-sm">
                 {coin.networks.map((n) => <option key={n} value={n}>{n}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Withdraw Address</label>
-              <Input value={withdrawAddr} onChange={(e) => setWithdrawAddr(e.target.value)} placeholder="0x..." className="bg-secondary border-border font-mono" />
+              <label className="text-[10px] text-muted-foreground mb-1 block">Withdraw Address</label>
+              <Input value={withdrawAddr} onChange={(e) => setWithdrawAddr(e.target.value)} placeholder="0x..." className="bg-secondary border-border font-mono h-9 text-sm" />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Amount (Available: {(user?.balance?.[selectedCoin] || 0).toFixed(4)})</label>
-              <Input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" type="number" className="bg-secondary border-border font-mono" />
+              <label className="text-[10px] text-muted-foreground mb-1 block">Amount (Avbl: {(user?.balance?.[selectedCoin] || 0).toFixed(4)})</label>
+              <Input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" type="number" className="bg-secondary border-border font-mono h-9 text-sm" />
             </div>
-            <Button onClick={doWithdraw} className="w-full bg-destructive text-destructive-foreground font-semibold">
+            <Button onClick={doWithdraw} className="w-full bg-danger text-danger-foreground font-semibold h-10">
               <ArrowUpRight className="h-4 w-4 mr-2" /> Withdraw
             </Button>
           </div>
@@ -287,22 +288,22 @@ const WalletPage = () => {
 
         {/* Transfer Tab */}
         {tab === "transfer" && (
-          <div className="glass-card rounded-xl p-4 space-y-4">
+          <div className="bg-card rounded-xl p-4 space-y-3 border border-border">
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Coin</label>
+              <label className="text-[10px] text-muted-foreground mb-1 block">Coin</label>
               <select value={selectedCoin} onChange={(e) => setSelectedCoin(e.target.value)} className="w-full bg-secondary text-foreground border border-border rounded-lg px-3 py-2 text-sm">
                 {COINS.slice(0, 30).map((c) => <option key={c.symbol} value={c.symbol}>{c.symbol} - {c.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Recipient (Username or Wallet Address)</label>
-              <Input value={transferTo} onChange={(e) => setTransferTo(e.target.value)} placeholder="username or 0x..." className="bg-secondary border-border" />
+              <label className="text-[10px] text-muted-foreground mb-1 block">Recipient (Username or Wallet Address)</label>
+              <Input value={transferTo} onChange={(e) => setTransferTo(e.target.value)} placeholder="username or 0x..." className="bg-secondary border-border h-9 text-sm" />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Amount (Available: {(user?.balance?.[selectedCoin] || 0).toFixed(4)})</label>
-              <Input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" type="number" className="bg-secondary border-border font-mono" />
+              <label className="text-[10px] text-muted-foreground mb-1 block">Amount (Avbl: {(user?.balance?.[selectedCoin] || 0).toFixed(4)})</label>
+              <Input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" type="number" className="bg-secondary border-border font-mono h-9 text-sm" />
             </div>
-            <Button onClick={doTransfer} className="w-full bg-primary text-primary-foreground font-semibold">
+            <Button onClick={doTransfer} className="w-full bg-primary text-primary-foreground font-semibold h-10">
               <Send className="h-4 w-4 mr-2" /> Send
             </Button>
           </div>
@@ -310,8 +311,8 @@ const WalletPage = () => {
 
         {/* History Tab */}
         {tab === "history" && (
-          <div className="glass-card rounded-xl overflow-hidden">
-            {transactions.length === 0 && <p className="p-4 text-center text-muted-foreground text-sm">No transactions yet</p>}
+          <div className="bg-card rounded-xl overflow-hidden border border-border">
+            {transactions.length === 0 && <p className="p-4 text-center text-muted-foreground text-xs">No transactions yet</p>}
             {transactions.slice(0, 50).map((tx) => (
               <div key={tx.id} className="flex items-center justify-between px-4 py-3 border-b border-border last:border-0">
                 <div className="flex items-center gap-3">
@@ -321,8 +322,8 @@ const WalletPage = () => {
                       : <ArrowUpRight className="h-4 w-4 text-danger" />}
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-foreground capitalize">{tx.type}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs font-medium text-foreground capitalize">{tx.type}</p>
+                    <p className="text-[10px] text-muted-foreground">
                       {new Date(tx.date).toLocaleDateString()}
                       {tx.from && <span> · From: {tx.from}</span>}
                       {tx.to && <span> · To: {tx.to}</span>}
@@ -330,10 +331,10 @@ const WalletPage = () => {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className={`text-sm font-mono ${["buy", "deposit", "receive"].includes(tx.type) ? "text-success" : "text-danger"}`}>
+                  <p className={`text-xs font-mono ${["buy", "deposit", "receive"].includes(tx.type) ? "text-success" : "text-danger"}`}>
                     {["buy", "deposit", "receive"].includes(tx.type) ? "+" : "-"}{tx.amount.toFixed(4)} {tx.coin}
                   </p>
-                  <p className="text-xs text-muted-foreground">${tx.total.toFixed(2)}</p>
+                  <p className="text-[10px] text-muted-foreground">${tx.total.toFixed(2)}</p>
                 </div>
               </div>
             ))}
@@ -347,11 +348,11 @@ const WalletPage = () => {
           <DialogHeader>
             <DialogTitle className="text-foreground">Security Verification</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">Enter your password to confirm this action.</p>
-          <Input value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} type="password" placeholder="Password" className="bg-secondary border-border" />
+          <p className="text-xs text-muted-foreground">Enter your password to confirm this action.</p>
+          <Input value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} type="password" placeholder="Password" className="bg-secondary border-border h-9" />
           <div className="flex gap-3">
-            <Button onClick={confirmAction} className="flex-1 bg-primary text-primary-foreground">Confirm</Button>
-            <Button onClick={() => setShowConfirm(false)} variant="outline" className="flex-1 border-border text-foreground">Cancel</Button>
+            <Button onClick={confirmAction} className="flex-1 bg-primary text-primary-foreground h-10">Confirm</Button>
+            <Button onClick={() => setShowConfirm(false)} variant="outline" className="flex-1 border-border text-foreground h-10">Cancel</Button>
           </div>
         </DialogContent>
       </Dialog>

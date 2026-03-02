@@ -46,63 +46,60 @@ const Market = () => {
   }, [search, tab, coins]);
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-background pb-16">
       <TopBar />
-      <div className="max-w-lg mx-auto px-4 py-4">
-        {/* Live indicator */}
-        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
-          <span className="h-2 w-2 rounded-full bg-success animate-pulse-glow" />
-          Live · {coins.length} coins
-        </div>
-
-        <div className="relative mb-4">
+      <div className="max-w-lg mx-auto px-4 py-3">
+        {/* Search */}
+        <div className="relative mb-3">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search Coin Pairs" className="pl-10 bg-secondary border-border" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search" className="pl-10 bg-card border-border h-9 text-sm rounded-lg" />
         </div>
 
-        <div className="flex gap-2 mb-4">
+        {/* Tabs */}
+        <div className="flex gap-3 mb-3 border-b border-border">
           {(["all", "gainers", "losers"] as Tab[]).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                tab === t ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"
+              className={`pb-2 text-sm font-medium transition-colors relative ${
+                tab === t ? "text-foreground" : "text-muted-foreground"
               }`}
             >
-              {t === "all" ? "All" : t === "gainers" ? "🟢 Gainers" : "🔴 Losers"}
+              {t === "all" ? "All" : t === "gainers" ? "Gainers" : "Losers"}
+              {tab === t && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />}
             </button>
           ))}
         </div>
 
         {/* Table header */}
-        <div className="flex items-center justify-between px-3 py-2 text-xs text-muted-foreground border-b border-border">
-          <span className="flex-1">Name ↕ / Vol ↕</span>
-          <span className="w-24 text-right">Last Price ↕</span>
-          <span className="w-20 text-right">24h Chg% ↕</span>
+        <div className="flex items-center justify-between px-1 py-2 text-[11px] text-muted-foreground">
+          <span className="flex-1">Name / Vol</span>
+          <span className="w-24 text-right">Last Price</span>
+          <span className="w-20 text-right">24h Chg%</span>
         </div>
 
-        <div className="divide-y divide-border">
+        <div>
           {filtered.map((coin) => (
             <button
               key={coin.id}
               onClick={() => navigate(`/trade/${coin.symbol}`)}
-              className={`flex items-center justify-between w-full px-3 py-3 hover:bg-secondary/50 transition-all ${coin.priceDirection !== "neutral" ? (coin.priceDirection === "up" ? "price-flash-up" : "price-flash-down") : ""}`}
+              className={`flex items-center justify-between w-full px-1 py-3 hover:bg-card/60 transition-all rounded ${coin.priceDirection !== "neutral" ? (coin.priceDirection === "up" ? "price-flash-up" : "price-flash-down") : ""}`}
             >
-              <div className="flex items-center gap-3 flex-1">
+              <div className="flex items-center gap-2.5 flex-1">
                 <img src={coin.image} alt={coin.name} className="h-8 w-8 rounded-full" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                 <div className="text-left">
                   <div className="flex items-center gap-1">
-                    <p className="text-sm font-bold text-foreground">{coin.symbol}</p>
-                    <span className="text-xs text-muted-foreground">/USDT</span>
+                    <p className="text-sm font-semibold text-foreground">{coin.symbol}</p>
+                    <span className="text-[10px] text-muted-foreground">/USDT</span>
                   </div>
-                  <p className="text-xs text-muted-foreground">{formatVolume(coin.volume)}</p>
+                  <p className="text-[10px] text-muted-foreground">{formatVolume(coin.volume)}</p>
                 </div>
               </div>
               <div className="w-24 text-right">
                 <PriceCell price={coin.price} direction={coin.priceDirection} />
               </div>
               <div className="w-20 text-right">
-                <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${
+                <span className={`inline-block px-2 py-1 rounded text-xs font-semibold min-w-[64px] text-center ${
                   coin.change24h >= 0 ? "bg-success text-success-foreground" : "bg-danger text-danger-foreground"
                 }`}>
                   {coin.change24h >= 0 ? "+" : ""}{coin.change24h.toFixed(2)}%

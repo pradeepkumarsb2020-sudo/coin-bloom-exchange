@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLiveMarket } from "@/contexts/MarketContext";
 import { formatPrice } from "@/data/coins";
 import { getTransactions } from "@/data/transactions";
-import { ArrowUp, ArrowDown, Clock, Copy, Menu, ArrowLeftRight } from "lucide-react";
+import { ArrowUp, ArrowDown, Clock, Copy, ArrowLeftRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import TopBar from "@/components/TopBar";
@@ -30,17 +30,17 @@ const AssetsPage = () => {
   const transactions = user ? getTransactions(user.id) : [];
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-background pb-16">
       <TopBar />
-      <div className="max-w-lg mx-auto px-4 py-4 space-y-5">
+      <div className="max-w-lg mx-auto px-4 py-3 space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-foreground">Assets</h1>
-          <div className="flex items-center gap-2">
-            <button onClick={() => navigate("/wallet")} className="text-xs bg-secondary text-muted-foreground px-3 py-1.5 rounded-full hover:text-foreground transition-colors">
+          <h1 className="text-lg font-bold text-foreground">Assets</h1>
+          <div className="flex bg-secondary rounded-lg overflow-hidden">
+            <button onClick={() => navigate("/wallet")} className="text-xs text-muted-foreground px-4 py-1.5 font-medium hover:text-foreground transition-colors">
               Exchange
             </button>
-            <span className="text-xs bg-primary text-primary-foreground px-3 py-1.5 rounded-full font-medium">
+            <span className="text-xs bg-primary text-primary-foreground px-4 py-1.5 font-semibold">
               Wallet
             </span>
           </div>
@@ -49,100 +49,97 @@ const AssetsPage = () => {
         {/* Wallet Address */}
         <div className="flex items-center gap-2">
           <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center">
-            <span className="text-primary text-[10px] font-bold">W</span>
+            <span className="text-primary text-[9px] font-bold">W3</span>
           </div>
-          <span className="text-sm text-muted-foreground">
+          <span className="text-xs text-muted-foreground font-mono">
             {user?.walletAddress?.slice(0, 8)}...{user?.walletAddress?.slice(-6)}
           </span>
           <button onClick={() => { navigator.clipboard.writeText(user?.walletAddress || ""); toast.success("Copied!"); }}>
-            <Copy className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
+            <Copy className="h-3 w-3 text-muted-foreground hover:text-primary" />
           </button>
         </div>
 
         {/* Total Balance */}
-        <p className="text-4xl font-bold text-foreground font-mono">
-          ${totalWalletValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-        </p>
+        <div>
+          <p className="text-[10px] text-muted-foreground mb-0.5">Total Wallet Value</p>
+          <p className="text-3xl font-bold text-foreground font-mono">
+            ${totalWalletValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </p>
+          <p className="text-[10px] text-muted-foreground">≈ ₹{(totalWalletValue * 83.5).toLocaleString("en-IN", { maximumFractionDigits: 0 })}</p>
+        </div>
 
         {/* Action Buttons */}
-        <div className="flex justify-between px-4">
+        <div className="flex justify-between px-2">
           {[
             { icon: ArrowUp, label: "Send", onClick: () => navigate("/wallet?tab=transfer") },
             { icon: ArrowDown, label: "Receive", onClick: () => navigate("/wallet?tab=deposit") },
             { icon: Clock, label: "History", onClick: () => setTab("history") },
             { icon: ArrowLeftRight, label: "Transfer", onClick: () => navigate("/wallet?tab=internal") },
           ].map((item) => (
-            <button key={item.label} onClick={item.onClick} className="flex flex-col items-center gap-2">
-              <div className="h-12 w-12 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors">
-                <item.icon className="h-5 w-5 text-foreground" />
+            <button key={item.label} onClick={item.onClick} className="flex flex-col items-center gap-1.5">
+              <div className="h-11 w-11 rounded-full bg-card border border-border flex items-center justify-center hover:bg-secondary transition-colors">
+                <item.icon className="h-4.5 w-4.5 text-foreground" />
               </div>
-              <span className="text-xs text-muted-foreground">{item.label}</span>
+              <span className="text-[10px] text-muted-foreground font-medium">{item.label}</span>
             </button>
           ))}
         </div>
 
-        {/* Separator */}
-        <div className="border-t border-border" />
-
         {/* Tabs */}
-        <div className="flex gap-6">
-          <button onClick={() => setTab("tokens")} className={`text-sm font-semibold pb-1 border-b-2 transition-colors ${tab === "tokens" ? "text-foreground border-primary" : "text-muted-foreground border-transparent"}`}>
+        <div className="flex gap-6 border-b border-border">
+          <button onClick={() => setTab("tokens")} className={`text-sm font-medium pb-2 relative transition-colors ${tab === "tokens" ? "text-foreground" : "text-muted-foreground"}`}>
             Tokens
+            {tab === "tokens" && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />}
           </button>
-          <button onClick={() => setTab("history")} className={`text-sm font-semibold pb-1 border-b-2 transition-colors ${tab === "history" ? "text-foreground border-primary" : "text-muted-foreground border-transparent"}`}>
+          <button onClick={() => setTab("history")} className={`text-sm font-medium pb-2 relative transition-colors ${tab === "history" ? "text-foreground" : "text-muted-foreground"}`}>
             History
+            {tab === "history" && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />}
           </button>
         </div>
 
         {tab === "tokens" && (
-          <>
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">Total Assets</p>
-              <p className="text-sm font-mono text-foreground">${totalWalletValue.toFixed(2)}</p>
-            </div>
-            <div className="space-y-1">
-              {walletHoldings.length === 0 && (
-                <div className="text-center py-8">
-                  <p className="text-sm text-muted-foreground">No wallet assets</p>
-                  <p className="text-xs text-muted-foreground mt-1">Transfer funds from Exchange to get started</p>
-                  <button onClick={() => navigate("/wallet?tab=internal")} className="mt-3 text-sm text-primary font-medium">
-                    Transfer Now →
-                  </button>
-                </div>
-              )}
-              {walletHoldings.map((h) => (
-                <div key={h.symbol} className="flex items-center justify-between py-3">
-                  <div className="flex items-center gap-3">
-                    {h.image ? (
-                      <img src={h.image} alt={h.symbol} className="h-10 w-10 rounded-full" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                    ) : (
-                      <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">
-                        {h.symbol.slice(0, 2)}
-                      </div>
-                    )}
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">{h.symbol}</p>
-                      <p className="text-xs text-muted-foreground">
-                        ${formatPrice(h.price)}{" "}
-                        <span className={h.change >= 0 ? "text-success" : "text-danger"}>
-                          {h.change >= 0 ? "+" : ""}{h.change.toFixed(2)}%
-                        </span>
-                      </p>
+          <div className="space-y-0">
+            {walletHoldings.length === 0 && (
+              <div className="text-center py-10">
+                <p className="text-sm text-muted-foreground">No wallet assets</p>
+                <p className="text-[10px] text-muted-foreground mt-1">Transfer funds from Exchange to get started</p>
+                <button onClick={() => navigate("/wallet?tab=internal")} className="mt-3 text-xs text-primary font-semibold bg-primary/10 rounded-lg px-4 py-2">
+                  Transfer Now →
+                </button>
+              </div>
+            )}
+            {walletHoldings.map((h) => (
+              <div key={h.symbol} className="flex items-center justify-between py-3">
+                <div className="flex items-center gap-3">
+                  {h.image ? (
+                    <img src={h.image} alt={h.symbol} className="h-9 w-9 rounded-full" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                  ) : (
+                    <div className="h-9 w-9 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs">
+                      {h.symbol.slice(0, 2)}
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-mono text-foreground">{h.amount.toFixed(h.amount < 1 ? 6 : 2)}</p>
-                    <p className="text-xs text-muted-foreground">${h.value.toFixed(2)}</p>
+                  )}
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{h.symbol}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      ${formatPrice(h.price)}{" "}
+                      <span className={h.change >= 0 ? "text-success" : "text-danger"}>
+                        {h.change >= 0 ? "+" : ""}{h.change.toFixed(2)}%
+                      </span>
+                    </p>
                   </div>
                 </div>
-              ))}
-            </div>
-          </>
+                <div className="text-right">
+                  <p className="text-sm font-mono text-foreground">{h.amount.toFixed(h.amount < 1 ? 6 : 2)}</p>
+                  <p className="text-[10px] text-muted-foreground">${h.value.toFixed(2)}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
 
         {tab === "history" && (
-          <div className="space-y-1">
-            {transactions.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">No transactions yet</p>}
+          <div className="space-y-0">
+            {transactions.length === 0 && <p className="py-10 text-center text-xs text-muted-foreground">No transactions yet</p>}
             {transactions.slice(0, 30).map((tx) => (
               <div key={tx.id} className="flex items-center justify-between py-3 border-b border-border last:border-0">
                 <div className="flex items-center gap-3">
@@ -152,15 +149,15 @@ const AssetsPage = () => {
                       : <ArrowUp className="h-4 w-4 text-danger" />}
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-foreground capitalize">{tx.type}</p>
-                    <p className="text-xs text-muted-foreground">{new Date(tx.date).toLocaleDateString()}</p>
+                    <p className="text-xs font-medium text-foreground capitalize">{tx.type}</p>
+                    <p className="text-[10px] text-muted-foreground">{new Date(tx.date).toLocaleDateString()}</p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className={`text-sm font-mono ${["buy", "deposit", "receive"].includes(tx.type) ? "text-success" : "text-danger"}`}>
+                  <p className={`text-xs font-mono ${["buy", "deposit", "receive"].includes(tx.type) ? "text-success" : "text-danger"}`}>
                     {["buy", "deposit", "receive"].includes(tx.type) ? "+" : "-"}{tx.amount.toFixed(4)} {tx.coin}
                   </p>
-                  <p className="text-xs text-muted-foreground">${tx.total.toFixed(2)}</p>
+                  <p className="text-[10px] text-muted-foreground">${tx.total.toFixed(2)}</p>
                 </div>
               </div>
             ))}

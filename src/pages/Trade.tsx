@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { COINS, formatPrice } from "@/data/coins";
+import { useLiveMarket } from "@/contexts/MarketContext";
+import { formatPrice } from "@/data/coins";
 import { addTransaction, Transaction } from "@/data/transactions";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,12 +13,13 @@ const Trade = () => {
   const { symbol } = useParams();
   const navigate = useNavigate();
   const { user, isAuthenticated, isGuest } = useAuth();
+  const { coins } = useLiveMarket();
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [orderType, setOrderType] = useState<"market" | "limit">("market");
   const [amount, setAmount] = useState("");
   const [limitPrice, setLimitPrice] = useState("");
 
-  const coin = useMemo(() => COINS.find((c) => c.symbol === (symbol || "BTC")) || COINS[0], [symbol]);
+  const coin = useMemo(() => coins.find((c) => c.symbol === (symbol || "BTC")) || coins[0], [symbol, coins]);
   const price = orderType === "limit" && limitPrice ? parseFloat(limitPrice) : coin.price;
   const total = amount ? parseFloat(amount) * price : 0;
 
@@ -86,7 +88,10 @@ const Trade = () => {
             <img src={coin.image} alt={coin.name} className="h-6 w-6 rounded-full" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
             <span className="font-semibold text-foreground">{coin.symbol}/USDT</span>
           </div>
-          <span className={`text-sm font-medium ${coin.change24h >= 0 ? "text-success" : "text-danger"}`}>
+          <span className={`text-sm font-mono font-bold ${'priceDirection' in coin && (coin as any).priceDirection === "up" ? "text-success" : 'priceDirection' in coin && (coin as any).priceDirection === "down" ? "text-danger" : "text-foreground"}`}>
+            ${formatPrice(coin.price)}
+          </span>
+          <span className={`text-xs font-medium ${coin.change24h >= 0 ? "text-success" : "text-danger"}`}>
             {coin.change24h >= 0 ? "+" : ""}{coin.change24h.toFixed(2)}%
           </span>
         </div>

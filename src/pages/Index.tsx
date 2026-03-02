@@ -1,31 +1,59 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { COINS, formatPrice, formatVolume } from "@/data/coins";
+import { useLiveMarket } from "@/contexts/MarketContext";
+import { formatPrice } from "@/data/coins";
 import { TrendingUp, TrendingDown, ArrowRight, Wallet, Eye, EyeOff } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import TopBar from "@/components/TopBar";
+
+const PriceCell = ({ price, direction, symbol }: { price: number; direction: string; symbol: string }) => {
+  const [flash, setFlash] = useState("");
+  const prevDir = useRef(direction);
+
+  useEffect(() => {
+    if (direction !== "neutral" && direction !== prevDir.current) {
+      setFlash(direction === "up" ? "price-flash-up" : "price-flash-down");
+      const t = setTimeout(() => setFlash(""), 800);
+      prevDir.current = direction;
+      return () => clearTimeout(t);
+    }
+  }, [direction, price]);
+
+  return (
+    <span className={`font-mono transition-colors duration-300 ${flash} ${direction === "up" ? "text-success" : direction === "down" ? "text-danger" : "text-foreground"}`}>
+      ${formatPrice(price)}
+    </span>
+  );
+};
 
 const Index = () => {
   const { user, isGuest, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const { coins, lastUpdate } = useLiveMarket();
   const [showBalance, setShowBalance] = useState(true);
 
   const totalBalance = useMemo(() => {
     if (!user?.balance) return 0;
     return Object.entries(user.balance).reduce((sum, [symbol, amount]) => {
-      const coin = COINS.find((c) => c.symbol === symbol);
+      const coin = coins.find((c) => c.symbol === symbol);
       return sum + amount * (coin?.price || (symbol === "USDT" ? 1 : 0));
     }, 0);
-  }, [user]);
+  }, [user, coins]);
 
-  const topGainers = useMemo(() => [...COINS].sort((a, b) => b.change24h - a.change24h).slice(0, 5), []);
-  const topLosers = useMemo(() => [...COINS].sort((a, b) => a.change24h - b.change24h).slice(0, 5), []);
-  const hotCoins = COINS.slice(0, 8);
+  const topGainers = useMemo(() => [...coins].sort((a, b) => b.change24h - a.change24h).slice(0, 5), [coins]);
+  const topLosers = useMemo(() => [...coins].sort((a, b) => a.change24h - b.change24h).slice(0, 5), [coins]);
+  const hotCoins = coins.slice(0, 8);
 
   return (
     <div className="min-h-screen bg-background pb-20">
       <TopBar />
       <div className="max-w-lg mx-auto px-4 py-4 space-y-6">
+        {/* Live indicator */}
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span className="h-2 w-2 rounded-full bg-success animate-pulse-glow" />
+          Live Market Data
+        </div>
+
         {/* Balance Card */}
         {isAuthenticated && (
           <div className="glass-card rounded-xl p-5 glow-primary">
@@ -76,14 +104,17 @@ const Index = () => {
               <button
                 key={coin.id}
                 onClick={() => navigate(`/trade/${coin.symbol}`)}
-                className="glass-card rounded-lg p-3 text-left hover:border-primary/30 transition-colors"
+                className={`glass-card rounded-lg p-3 text-left hover:border-primary/30 transition-all ${coin.priceDirection === "up" ? "price-flash-up" : coin.priceDirection === "down" ? "price-flash-down" : ""}`}
               >
                 <div className="flex items-center gap-2 mb-2">
                   <img src={coin.image} alt={coin.name} className="h-6 w-6 rounded-full" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                   <span className="text-sm font-semibold text-foreground">{coin.symbol}</span>
+                  <span className="text-[10px] text-muted-foreground">/USDT</span>
                 </div>
-                <p className="text-sm font-mono text-foreground">${formatPrice(coin.price)}</p>
-                <p className={`text-xs font-medium ${coin.change24h >= 0 ? "text-success" : "text-danger"}`}>
+                <p className="text-sm">
+                  <PriceCell price={coin.price} direction={coin.priceDirection} symbol={coin.symbol} />
+                </p>
+                <p className={`text-xs font-medium mt-0.5 ${coin.change24h >= 0 ? "text-success" : "text-danger"}`}>
                   {coin.change24h >= 0 ? "+" : ""}{coin.change24h.toFixed(2)}%
                 </p>
               </button>
@@ -101,17 +132,17 @@ const Index = () => {
               <button
                 key={coin.id}
                 onClick={() => navigate(`/trade/${coin.symbol}`)}
-                className="flex items-center justify-between w-full px-4 py-3 hover:bg-secondary/50 transition-colors border-b border-border last:border-0"
+                className={`flex items-center justify-between w-full px-4 py-3 hover:bg-secondary/50 transition-all border-b border-border last:border-0 ${coin.priceDirection === "up" ? "price-flash-up" : coin.priceDirection === "down" ? "price-flash-down" : ""}`}
               >
                 <div className="flex items-center gap-3">
                   <img src={coin.image} alt={coin.name} className="h-8 w-8 rounded-full" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                   <div className="text-left">
-                    <p className="text-sm font-semibold text-foreground">{coin.symbol}</p>
+                    <p className="text-sm font-semibold text-foreground">{coin.symbol}<span className="text-xs text-muted-foreground ml-1">/USDT</span></p>
                     <p className="text-xs text-muted-foreground">{coin.name}</p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-mono text-foreground">${formatPrice(coin.price)}</p>
+                  <p className="text-sm"><PriceCell price={coin.price} direction={coin.priceDirection} symbol={coin.symbol} /></p>
                   <p className="text-xs font-medium text-success">+{coin.change24h.toFixed(2)}%</p>
                 </div>
               </button>
@@ -129,17 +160,17 @@ const Index = () => {
               <button
                 key={coin.id}
                 onClick={() => navigate(`/trade/${coin.symbol}`)}
-                className="flex items-center justify-between w-full px-4 py-3 hover:bg-secondary/50 transition-colors border-b border-border last:border-0"
+                className={`flex items-center justify-between w-full px-4 py-3 hover:bg-secondary/50 transition-all border-b border-border last:border-0 ${coin.priceDirection === "up" ? "price-flash-up" : coin.priceDirection === "down" ? "price-flash-down" : ""}`}
               >
                 <div className="flex items-center gap-3">
                   <img src={coin.image} alt={coin.name} className="h-8 w-8 rounded-full" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                   <div className="text-left">
-                    <p className="text-sm font-semibold text-foreground">{coin.symbol}</p>
+                    <p className="text-sm font-semibold text-foreground">{coin.symbol}<span className="text-xs text-muted-foreground ml-1">/USDT</span></p>
                     <p className="text-xs text-muted-foreground">{coin.name}</p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-mono text-foreground">${formatPrice(coin.price)}</p>
+                  <p className="text-sm"><PriceCell price={coin.price} direction={coin.priceDirection} symbol={coin.symbol} /></p>
                   <p className="text-xs font-medium text-danger">{coin.change24h.toFixed(2)}%</p>
                 </div>
               </button>

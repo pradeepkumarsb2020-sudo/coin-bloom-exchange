@@ -9,7 +9,8 @@ export interface User {
   role: UserRole;
   walletAddress: string;
   walletId: string;
-  balance: Record<string, number>;
+  balance: Record<string, number>; // Exchange balance
+  walletBalance: Record<string, number>; // Web3 Wallet balance
   createdAt: string;
 }
 
@@ -23,6 +24,8 @@ interface AuthContextType {
   loginAsGuest: () => void;
   logout: () => void;
   requireAuth: (action: string) => boolean;
+  transferBetweenAccounts: (coin: string, amount: number, direction: "toWallet" | "toExchange") => boolean;
+  refreshUser: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -46,6 +49,7 @@ const DEMO_USERS: User[] = [
     walletAddress: "0xADMIN0000000000000000000000000000000001",
     walletId: "wallet-admin-001",
     balance: { USDT: 1000000, BTC: 10, ETH: 100 },
+    walletBalance: { USDT: 50000, BTC: 5, ETH: 50 },
     createdAt: "2024-01-01T00:00:00Z",
   },
 ];
@@ -90,6 +94,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       walletAddress: generateWalletAddress(),
       walletId: `wallet-${generateId().slice(0, 8)}`,
       balance: { USDT: 10000, BTC: 0, ETH: 0 },
+      walletBalance: { USDT: 0 },
       createdAt: new Date().toISOString(),
     };
     users.push(newUser);
@@ -108,6 +113,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       walletAddress: "",
       walletId: "",
       balance: {},
+      walletBalance: {},
       createdAt: new Date().toISOString(),
     };
     setUser(guest);
@@ -126,9 +132,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [isAuthenticated]
   );
 
+  const refreshUser = useCallback(() => {
+    const saved = localStorage.getItem("cryptox_user");
+    if (saved) setUser(JSON.parse(saved));
+  }, []);
+
+  const transferBetweenAccounts = useCallback((coin: string, amount: number, direction: "toWallet" | "toExchange"): boolean => {
+    if (!user || amount <= 0) return false;
+    const src = direction === "toWallet" ? user.balance : user.walletBalance;
+    const dst = direction === "toWallet" ? user.walletBalance : user.balance;
+    if ((src[coin] || 0) < amount) return false;
+
+    src[coin] = (src[coin] || 0) - amount;
+    dst[coin] = (dst[coin] || 0) + amount;
+
+    // Persist
+    localStorage.setItem("cryptox_user", JSON.stringify(user));
+    const users = JSON.parse(localStorage.getItem("cryptox_all_users") || "[]");
+    const idx = users.findIndex((u: any) => u.id === user.id);
+    if (idx >= 0) { users[idx] = { ...users[idx], balance: user.balance, walletBalance: user.walletBalance }; localStorage.setItem("cryptox_all_users", JSON.stringify(users)); }
+    setUser({ ...user });
+    return true;
+  }, [user]);
+
   return (
     <AuthContext.Provider
-      value={{ user, isGuest, isAdmin, isAuthenticated, login, signup, loginAsGuest, logout, requireAuth }}
+      value={{ user, isGuest, isAdmin, isAuthenticated, login, signup, loginAsGuest, logout, requireAuth, transferBetweenAccounts, refreshUser }}
     >
       {children}
     </AuthContext.Provider>

@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, BarChart3, ArrowLeftRight, Wallet, User, Shield } from "lucide-react";
+import { Home, BarChart3, ArrowLeftRight, Wallet, User, Shield, Briefcase } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const BottomNav = () => {
@@ -13,7 +13,8 @@ const BottomNav = () => {
     { to: "/", icon: Home, label: "Home" },
     { to: "/market", icon: BarChart3, label: "Markets" },
     { to: "/trade", icon: ArrowLeftRight, label: "Trade" },
-    { to: "/wallet", icon: Wallet, label: "Wallet" },
+    { to: "/wallet", icon: Wallet, label: "Exchange" },
+    { to: "/assets", icon: Briefcase, label: "Assets" },
     ...(isAdmin ? [{ to: "/admin", icon: Shield, label: "Admin" }] : [{ to: "/profile", icon: User, label: "Profile" }]),
   ];
 

@@ -11,6 +11,7 @@ import Index from "./pages/Index";
 import Market from "./pages/Market";
 import Trade from "./pages/Trade";
 import WalletPage from "./pages/WalletPage";
+import AssetsPage from "./pages/AssetsPage";
 import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
 import Login from "./pages/Login";
@@ -37,6 +38,7 @@ const App = () => (
             <Route path="/trade" element={<ProtectedRoute><Trade /></ProtectedRoute>} />
             <Route path="/trade/:symbol" element={<ProtectedRoute><Trade /></ProtectedRoute>} />
             <Route path="/wallet" element={<ProtectedRoute><WalletPage /></ProtectedRoute>} />
+            <Route path="/assets" element={<ProtectedRoute><AssetsPage /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />

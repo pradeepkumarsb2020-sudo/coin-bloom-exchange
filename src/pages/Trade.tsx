@@ -1,9 +1,9 @@
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { COINS, formatPrice } from "@/data/coins";
 import { addTransaction, Transaction } from "@/data/transactions";
-import { ArrowLeft, ChevronDown } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -202,5 +202,4 @@ const Trade = () => {
   );
 };
 
-import React from "react";
 export default Trade;

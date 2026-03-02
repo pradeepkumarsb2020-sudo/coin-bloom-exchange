@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { TrendingUp, Bell, Settings } from "lucide-react";
+import { TrendingUp, Bell } from "lucide-react";
 
 const TopBar = () => {
   const { user, isGuest } = useAuth();

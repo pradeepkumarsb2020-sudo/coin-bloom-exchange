@@ -139,19 +139,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const transferBetweenAccounts = useCallback((coin: string, amount: number, direction: "toWallet" | "toExchange"): boolean => {
     if (!user || amount <= 0) return false;
-    const src = direction === "toWallet" ? user.balance : user.walletBalance;
-    const dst = direction === "toWallet" ? user.walletBalance : user.balance;
-    if ((src[coin] || 0) < amount) return false;
+    
+    const srcBalance = direction === "toWallet" ? { ...user.balance } : { ...user.walletBalance };
+    const dstBalance = direction === "toWallet" ? { ...user.walletBalance } : { ...user.balance };
+    
+    if ((srcBalance[coin] || 0) < amount) return false;
 
-    src[coin] = (src[coin] || 0) - amount;
-    dst[coin] = (dst[coin] || 0) + amount;
+    srcBalance[coin] = (srcBalance[coin] || 0) - amount;
+    dstBalance[coin] = (dstBalance[coin] || 0) + amount;
 
-    // Persist
-    localStorage.setItem("cryptox_user", JSON.stringify(user));
+    const newBalance = direction === "toWallet" ? srcBalance : dstBalance;
+    const newWalletBalance = direction === "toWallet" ? dstBalance : srcBalance;
+
+    const updatedUser: User = {
+      ...user,
+      balance: newBalance,
+      walletBalance: newWalletBalance,
+    };
+
+    // Persist to localStorage
+    localStorage.setItem("cryptox_user", JSON.stringify(updatedUser));
     const users = JSON.parse(localStorage.getItem("cryptox_all_users") || "[]");
     const idx = users.findIndex((u: any) => u.id === user.id);
-    if (idx >= 0) { users[idx] = { ...users[idx], balance: user.balance, walletBalance: user.walletBalance }; localStorage.setItem("cryptox_all_users", JSON.stringify(users)); }
-    setUser({ ...user });
+    if (idx >= 0) {
+      users[idx] = { ...users[idx], balance: newBalance, walletBalance: newWalletBalance };
+      localStorage.setItem("cryptox_all_users", JSON.stringify(users));
+    }
+
+    // Set new object reference to trigger React re-render
+    setUser(updatedUser);
     return true;
   }, [user]);
 

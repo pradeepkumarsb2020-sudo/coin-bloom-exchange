@@ -13,13 +13,19 @@ const Profile = () => {
   const navigate = useNavigate();
 
   const transactions = user ? getTransactions(user.id) : [];
-  const holdings = useMemo(() => {
+  const exchangeHoldings = useMemo(() => {
     return Object.entries(user?.balance || {}).filter(([_, a]) => a > 0).map(([sym, amt]) => {
       const c = COINS.find((co) => co.symbol === sym);
       return { symbol: sym, amount: amt, value: amt * (c?.price || 1) };
     });
   }, [user]);
-  const totalValue = holdings.reduce((s, h) => s + h.value, 0);
+  const walletHoldings = useMemo(() => {
+    return Object.entries(user?.walletBalance || {}).filter(([_, a]) => a > 0).map(([sym, amt]) => {
+      const c = COINS.find((co) => co.symbol === sym);
+      return { symbol: sym, amount: amt, value: amt * (c?.price || 1) };
+    });
+  }, [user]);
+  const totalValue = exchangeHoldings.reduce((s, h) => s + h.value, 0) + walletHoldings.reduce((s, h) => s + h.value, 0);
 
   const handleLogout = () => {
     logout();
@@ -62,7 +68,8 @@ const Profile = () => {
             <p className="text-sm font-semibold text-foreground">Portfolio</p>
             <p className="text-sm font-bold font-mono text-primary">${totalValue.toFixed(2)}</p>
           </div>
-          {holdings.map((h) => (
+          <p className="text-xs text-muted-foreground mb-2">Exchange</p>
+          {exchangeHoldings.map((h) => (
             <div key={h.symbol} className="flex items-center justify-between py-2 border-t border-border first:border-0">
               <span className="text-sm text-foreground">{h.symbol}</span>
               <div className="text-right">
@@ -71,6 +78,20 @@ const Profile = () => {
               </div>
             </div>
           ))}
+          {walletHoldings.length > 0 && (
+            <>
+              <p className="text-xs text-muted-foreground mt-3 mb-2">Wallet</p>
+              {walletHoldings.map((h) => (
+                <div key={h.symbol} className="flex items-center justify-between py-2 border-t border-border">
+                  <span className="text-sm text-foreground">{h.symbol}</span>
+                  <div className="text-right">
+                    <span className="text-sm font-mono text-foreground">{h.amount.toFixed(h.amount < 1 ? 6 : 2)}</span>
+                    <span className="text-xs text-muted-foreground ml-2">${h.value.toFixed(2)}</span>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
         </div>
 
         {/* Menu Items */}

@@ -1,57 +1,71 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLiveMarket } from "@/contexts/MarketContext";
 import { formatPrice } from "@/data/coins";
-import { addTransaction, Transaction } from "@/data/transactions";
+import { addTransaction, getTransactions, Transaction } from "@/data/transactions";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
+const INTERVALS = [
+  { label: "15m", value: "15" },
+  { label: "1h", value: "60" },
+  { label: "4h", value: "240" },
+  { label: "1D", value: "D" },
+  { label: "1W", value: "W" },
+];
+
 const Trade = () => {
   const { symbol } = useParams();
   const navigate = useNavigate();
-  const { user, isAuthenticated, isGuest } = useAuth();
+  const { user, isAuthenticated, isGuest, updateBalance } = useAuth();
   const { coins } = useLiveMarket();
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [orderType, setOrderType] = useState<"market" | "limit">("market");
   const [amount, setAmount] = useState("");
   const [limitPrice, setLimitPrice] = useState("");
+  const [chartInterval, setChartInterval] = useState("60");
+  const [bottomTab, setBottomTab] = useState<"orders" | "holdings" | "history">("orders");
 
   const coin = useMemo(() => coins.find((c) => c.symbol === (symbol || "BTC")) || coins[0], [symbol, coins]);
   const price = orderType === "limit" && limitPrice ? parseFloat(limitPrice) : coin.price;
   const total = amount ? parseFloat(amount) * price : 0;
 
-  const handleTrade = () => {
+  const handleTrade = useCallback(() => {
     if (!isAuthenticated) {
       if (isGuest) navigate("/login");
       return;
     }
     if (!amount || parseFloat(amount) <= 0) { toast.error("Enter a valid amount"); return; }
+    if (orderType === "limit" && (!limitPrice || parseFloat(limitPrice) <= 0)) { toast.error("Enter a valid limit price"); return; }
 
-    const userBalance = user!.balance;
+    const currentBalance = { ...user!.balance };
+    const amt = parseFloat(amount);
+
     if (side === "buy") {
-      if ((userBalance.USDT || 0) < total) { toast.error("Insufficient USDT balance"); return; }
-      userBalance.USDT = (userBalance.USDT || 0) - total;
-      userBalance[coin.symbol] = (userBalance[coin.symbol] || 0) + parseFloat(amount);
+      if ((currentBalance.USDT || 0) < total) { toast.error("Insufficient USDT balance"); return; }
+      currentBalance.USDT = (currentBalance.USDT || 0) - total;
+      currentBalance[coin.symbol] = (currentBalance[coin.symbol] || 0) + amt;
     } else {
-      if ((userBalance[coin.symbol] || 0) < parseFloat(amount)) { toast.error(`Insufficient ${coin.symbol} balance`); return; }
-      userBalance[coin.symbol] = (userBalance[coin.symbol] || 0) - parseFloat(amount);
-      userBalance.USDT = (userBalance.USDT || 0) + total;
+      if ((currentBalance[coin.symbol] || 0) < amt) { toast.error(`Insufficient ${coin.symbol} balance`); return; }
+      currentBalance[coin.symbol] = (currentBalance[coin.symbol] || 0) - amt;
+      currentBalance.USDT = (currentBalance.USDT || 0) + total;
     }
 
-    // Save updated balance
-    const users = JSON.parse(localStorage.getItem("cryptox_all_users") || "[]");
-    const idx = users.findIndex((u: any) => u.id === user!.id);
-    if (idx >= 0) { users[idx].balance = userBalance; localStorage.setItem("cryptox_all_users", JSON.stringify(users)); }
-    localStorage.setItem("cryptox_user", JSON.stringify({ ...user!, balance: userBalance }));
+    // Clean up zero balances
+    Object.keys(currentBalance).forEach(k => {
+      if (currentBalance[k] <= 0 && k !== "USDT") delete currentBalance[k];
+    });
+
+    updateBalance(currentBalance);
 
     const txn: Transaction = {
       id: crypto.randomUUID(),
       type: side,
       coin: coin.symbol,
-      amount: parseFloat(amount),
+      amount: amt,
       price,
       total,
       date: new Date().toISOString(),
@@ -60,10 +74,13 @@ const Trade = () => {
     addTransaction(user!.id, txn);
     toast.success(`${side === "buy" ? "Bought" : "Sold"} ${amount} ${coin.symbol} for $${total.toFixed(2)}`);
     setAmount("");
+    if (orderType === "limit") setLimitPrice("");
+  }, [isAuthenticated, isGuest, amount, limitPrice, orderType, side, user, coin, total, price, navigate, updateBalance]);
 
-    // Force re-render by updating user in context
-    window.location.reload();
-  };
+  const handleOrderBookClick = useCallback((clickedPrice: number) => {
+    setOrderType("limit");
+    setLimitPrice(formatPrice(clickedPrice));
+  }, []);
 
   // Fake order book
   const orderBook = useMemo(() => {
@@ -77,6 +94,19 @@ const Trade = () => {
     }));
     return { asks: asks.reverse(), bids };
   }, [coin]);
+
+  // User holdings for this coin
+  const holdings = useMemo(() => {
+    if (!user) return [];
+    return Object.entries(user.balance)
+      .filter(([_, amt]) => amt > 0)
+      .map(([sym, amt]) => {
+        const c = coins.find(co => co.symbol === sym);
+        return { symbol: sym, amount: amt, value: amt * (c?.price || (sym === "USDT" ? 1 : 0)) };
+      });
+  }, [user, coins]);
+
+  const transactions = user ? getTransactions(user.id).filter(t => t.coin === coin.symbol).slice(0, 10) : [];
 
   return (
     <div className="min-h-screen bg-background pb-16">
@@ -98,10 +128,28 @@ const Trade = () => {
       </div>
 
       <div className="max-w-lg mx-auto px-4 py-3 space-y-3">
+        {/* Chart Timeframe Buttons */}
+        <div className="flex gap-1.5">
+          {INTERVALS.map((iv) => (
+            <button
+              key={iv.value}
+              onClick={() => setChartInterval(iv.value)}
+              className={`px-2.5 py-1 rounded text-[10px] font-medium transition-colors ${
+                chartInterval === iv.value
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {iv.label}
+            </button>
+          ))}
+        </div>
+
         {/* Chart */}
         <div className="bg-card rounded-xl overflow-hidden border border-border" style={{ height: 280 }}>
           <iframe
-            src={`https://s.tradingview.com/widgetembed/?frameElementId=tv_chart&symbol=BINANCE:${coin.symbol}USDT&interval=60&hidesidetoolbar=1&symboledit=0&saveimage=0&toolbarbg=0B0E11&studies=[]&theme=dark&style=1&timezone=Etc/UTC&withdateranges=1&showpopupbutton=0&studies_overrides={}&overrides={}&enabled_features=[]&disabled_features=[]&showvolume=0&locale=en&utm_source=&utm_medium=widget&utm_campaign=chart`}
+            key={chartInterval}
+            src={`https://s.tradingview.com/widgetembed/?frameElementId=tv_chart&symbol=BINANCE:${coin.symbol}USDT&interval=${chartInterval}&hidesidetoolbar=1&symboledit=0&saveimage=0&toolbarbg=0B0E11&studies=[]&theme=dark&style=1&timezone=Etc/UTC&withdateranges=1&showpopupbutton=0&studies_overrides={}&overrides={}&enabled_features=[]&disabled_features=[]&showvolume=0&locale=en&utm_source=&utm_medium=widget&utm_campaign=chart`}
             className="w-full h-full border-0"
             title="TradingView Chart"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -187,7 +235,7 @@ const Trade = () => {
             <div className="text-muted-foreground mb-1 text-right">Amount</div>
             {orderBook.asks.map((a, i) => (
               <React.Fragment key={`ask-${i}`}>
-                <div className="text-danger font-mono py-0.5">{formatPrice(a.price)}</div>
+                <div className="text-danger font-mono py-0.5 cursor-pointer hover:underline" onClick={() => handleOrderBookClick(a.price)}>{formatPrice(a.price)}</div>
                 <div className="text-right font-mono text-muted-foreground py-0.5">{a.amount.toFixed(2)}</div>
               </React.Fragment>
             ))}
@@ -196,10 +244,75 @@ const Trade = () => {
             </div>
             {orderBook.bids.map((b, i) => (
               <React.Fragment key={`bid-${i}`}>
-                <div className="text-success font-mono py-0.5">{formatPrice(b.price)}</div>
+                <div className="text-success font-mono py-0.5 cursor-pointer hover:underline" onClick={() => handleOrderBookClick(b.price)}>{formatPrice(b.price)}</div>
                 <div className="text-right font-mono text-muted-foreground py-0.5">{b.amount.toFixed(2)}</div>
               </React.Fragment>
             ))}
+          </div>
+        </div>
+
+        {/* Bottom Tabs: Open Orders / Holdings / History */}
+        <div className="bg-card rounded-xl border border-border overflow-hidden">
+          <div className="flex border-b border-border">
+            {(["orders", "holdings", "history"] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => setBottomTab(t)}
+                className={`flex-1 py-2.5 text-xs font-medium transition-colors relative ${
+                  bottomTab === t ? "text-foreground" : "text-muted-foreground"
+                }`}
+              >
+                {t === "orders" ? "Open Orders" : t === "holdings" ? "Holdings" : "History"}
+                {bottomTab === t && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />}
+              </button>
+            ))}
+          </div>
+
+          <div className="p-3 min-h-[80px]">
+            {bottomTab === "orders" && (
+              <p className="text-xs text-muted-foreground text-center py-4">No open orders</p>
+            )}
+
+            {bottomTab === "holdings" && (
+              <div>
+                {holdings.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-4">No holdings</p>
+                ) : (
+                  holdings.map((h) => (
+                    <div key={h.symbol} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                      <span className="text-xs font-semibold text-foreground">{h.symbol}</span>
+                      <div className="text-right">
+                        <p className="text-xs font-mono text-foreground">{h.amount.toFixed(h.amount < 1 ? 6 : 2)}</p>
+                        <p className="text-[10px] text-muted-foreground">${h.value.toFixed(2)}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {bottomTab === "history" && (
+              <div>
+                {transactions.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-4">No trade history for {coin.symbol}</p>
+                ) : (
+                  transactions.map((tx) => (
+                    <div key={tx.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                      <div>
+                        <p className="text-xs font-medium text-foreground capitalize">{tx.type}</p>
+                        <p className="text-[10px] text-muted-foreground">{new Date(tx.date).toLocaleString()}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-xs font-mono ${tx.type === "buy" ? "text-success" : "text-danger"}`}>
+                          {tx.type === "buy" ? "+" : "-"}{tx.amount.toFixed(4)} {tx.coin}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">${tx.total.toFixed(2)}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

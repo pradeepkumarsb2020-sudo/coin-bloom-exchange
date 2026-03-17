@@ -4,6 +4,7 @@ import { useLiveMarket } from "@/contexts/MarketContext";
 import { formatPrice } from "@/data/coins";
 import { TrendingUp, TrendingDown, ArrowRight, Wallet, Eye, EyeOff, Gift, Star, Users, Percent, Sparkles, RefreshCw, Trophy, MoreHorizontal, Plus, Send, ArrowLeftRight } from "lucide-react";
 import { useState, useMemo, useRef, useEffect } from "react";
+import { toast } from "sonner";
 import TopBar from "@/components/TopBar";
 
 const PriceCell = ({ price, direction, symbol }: { price: number; direction: string; symbol: string }) => {

@@ -46,14 +46,14 @@ const Index = () => {
   const hotCoins = coins.slice(0, 8);
 
   const quickActions = [
-    { icon: Gift, label: "Rewards Hub", color: "text-primary" },
-    { icon: Star, label: "Earn", color: "text-primary" },
-    { icon: Users, label: "Referral", color: "text-primary" },
-    { icon: Percent, label: "Convert", color: "text-primary" },
-    { icon: Sparkles, label: "Alpha", color: "text-primary" },
-    { icon: RefreshCw, label: "Swap", color: "text-primary" },
-    { icon: Trophy, label: "Rewards", color: "text-primary" },
-    { icon: MoreHorizontal, label: "More", color: "text-muted-foreground" },
+    { icon: Gift, label: "Rewards Hub", color: "text-primary", action: () => toast.info("Rewards Hub coming soon!") },
+    { icon: Star, label: "Earn", color: "text-primary", action: () => toast.info("Earn feature coming soon!") },
+    { icon: Users, label: "Referral", color: "text-primary", action: () => toast.info("Referral program coming soon!") },
+    { icon: Percent, label: "Convert", color: "text-primary", action: () => navigate("/trade") },
+    { icon: Sparkles, label: "Alpha", color: "text-primary", action: () => navigate("/market") },
+    { icon: RefreshCw, label: "Swap", color: "text-primary", action: () => navigate("/trade") },
+    { icon: Trophy, label: "Rewards", color: "text-primary", action: () => toast.info("Rewards coming soon!") },
+    { icon: MoreHorizontal, label: "More", color: "text-muted-foreground", action: () => navigate("/market") },
   ];
 
   const displayCoins = useMemo(() => {

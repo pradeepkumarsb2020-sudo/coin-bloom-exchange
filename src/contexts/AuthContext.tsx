@@ -25,6 +25,7 @@ interface AuthContextType {
   logout: () => void;
   requireAuth: (action: string) => boolean;
   transferBetweenAccounts: (coin: string, amount: number, direction: "toWallet" | "toExchange") => boolean;
+  updateBalance: (newBalance: Record<string, number>) => void;
   refreshUser: () => void;
 }
 
@@ -137,6 +138,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (saved) setUser(JSON.parse(saved));
   }, []);
 
+  const updateBalance = useCallback((newBalance: Record<string, number>) => {
+    if (!user) return;
+    const updatedUser: User = { ...user, balance: { ...newBalance } };
+    localStorage.setItem("cryptox_user", JSON.stringify(updatedUser));
+    const users = JSON.parse(localStorage.getItem("cryptox_all_users") || "[]");
+    const idx = users.findIndex((u: any) => u.id === user.id);
+    if (idx >= 0) {
+      users[idx] = { ...users[idx], balance: { ...newBalance } };
+      localStorage.setItem("cryptox_all_users", JSON.stringify(users));
+    }
+    setUser(updatedUser);
+  }, [user]);
+
   const transferBetweenAccounts = useCallback((coin: string, amount: number, direction: "toWallet" | "toExchange"): boolean => {
     if (!user || amount <= 0) return false;
     
@@ -173,7 +187,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <AuthContext.Provider
-      value={{ user, isGuest, isAdmin, isAuthenticated, login, signup, loginAsGuest, logout, requireAuth, transferBetweenAccounts, refreshUser }}
+      value={{ user, isGuest, isAdmin, isAuthenticated, login, signup, loginAsGuest, logout, requireAuth, transferBetweenAccounts, updateBalance, refreshUser }}
     >
       {children}
     </AuthContext.Provider>

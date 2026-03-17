@@ -4,6 +4,7 @@ import { useLiveMarket } from "@/contexts/MarketContext";
 import { formatPrice } from "@/data/coins";
 import { TrendingUp, TrendingDown, ArrowRight, Wallet, Eye, EyeOff, Gift, Star, Users, Percent, Sparkles, RefreshCw, Trophy, MoreHorizontal, Plus, Send, ArrowLeftRight } from "lucide-react";
 import { useState, useMemo, useRef, useEffect } from "react";
+import { toast } from "sonner";
 import TopBar from "@/components/TopBar";
 
 const PriceCell = ({ price, direction, symbol }: { price: number; direction: string; symbol: string }) => {
@@ -46,14 +47,14 @@ const Index = () => {
   const hotCoins = coins.slice(0, 8);
 
   const quickActions = [
-    { icon: Gift, label: "Rewards Hub", color: "text-primary" },
-    { icon: Star, label: "Earn", color: "text-primary" },
-    { icon: Users, label: "Referral", color: "text-primary" },
-    { icon: Percent, label: "Convert", color: "text-primary" },
-    { icon: Sparkles, label: "Alpha", color: "text-primary" },
-    { icon: RefreshCw, label: "Swap", color: "text-primary" },
-    { icon: Trophy, label: "Rewards", color: "text-primary" },
-    { icon: MoreHorizontal, label: "More", color: "text-muted-foreground" },
+    { icon: Gift, label: "Rewards Hub", color: "text-primary", action: () => toast.info("Rewards Hub coming soon!") },
+    { icon: Star, label: "Earn", color: "text-primary", action: () => toast.info("Earn feature coming soon!") },
+    { icon: Users, label: "Referral", color: "text-primary", action: () => toast.info("Referral program coming soon!") },
+    { icon: Percent, label: "Convert", color: "text-primary", action: () => navigate("/trade") },
+    { icon: Sparkles, label: "Alpha", color: "text-primary", action: () => navigate("/market") },
+    { icon: RefreshCw, label: "Swap", color: "text-primary", action: () => navigate("/trade") },
+    { icon: Trophy, label: "Rewards", color: "text-primary", action: () => toast.info("Rewards coming soon!") },
+    { icon: MoreHorizontal, label: "More", color: "text-muted-foreground", action: () => navigate("/market") },
   ];
 
   const displayCoins = useMemo(() => {
@@ -116,7 +117,7 @@ const Index = () => {
         {/* Quick Actions Grid */}
         <div className="grid grid-cols-4 gap-2">
           {quickActions.map((action) => (
-            <button key={action.label} className="flex flex-col items-center gap-1.5 py-3 rounded-xl bg-card hover:bg-secondary transition-colors">
+            <button key={action.label} onClick={action.action} className="flex flex-col items-center gap-1.5 py-3 rounded-xl bg-card hover:bg-secondary transition-colors">
               <div className="h-9 w-9 rounded-xl bg-secondary flex items-center justify-center">
                 <action.icon className={`h-4.5 w-4.5 ${action.color}`} />
               </div>

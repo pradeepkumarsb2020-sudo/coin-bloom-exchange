@@ -117,7 +117,7 @@ const Index = () => {
         {/* Quick Actions Grid */}
         <div className="grid grid-cols-4 gap-2">
           {quickActions.map((action) => (
-            <button key={action.label} className="flex flex-col items-center gap-1.5 py-3 rounded-xl bg-card hover:bg-secondary transition-colors">
+            <button key={action.label} onClick={action.action} className="flex flex-col items-center gap-1.5 py-3 rounded-xl bg-card hover:bg-secondary transition-colors">
               <div className="h-9 w-9 rounded-xl bg-secondary flex items-center justify-center">
                 <action.icon className={`h-4.5 w-4.5 ${action.color}`} />
               </div>

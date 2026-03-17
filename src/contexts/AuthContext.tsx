@@ -25,6 +25,7 @@ interface AuthContextType {
   logout: () => void;
   requireAuth: (action: string) => boolean;
   transferBetweenAccounts: (coin: string, amount: number, direction: "toWallet" | "toExchange") => boolean;
+  updateBalance: (newBalance: Record<string, number>) => void;
   refreshUser: () => void;
 }
 

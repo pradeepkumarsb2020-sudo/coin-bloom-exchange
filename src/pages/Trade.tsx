@@ -1,10 +1,10 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLiveMarket } from "@/contexts/MarketContext";
 import { formatPrice } from "@/data/coins";
 import { addTransaction, getTransactions, Transaction } from "@/data/transactions";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -17,32 +17,84 @@ const INTERVALS = [
   { label: "1W", value: "W" },
 ];
 
+const LS_KEY_TAB = "trade_bottom_tab";
+const LS_KEY_SIDE = "trade_side";
+const LS_KEY_AMOUNT = "trade_amount";
+
 const Trade = () => {
   const { symbol } = useParams();
   const navigate = useNavigate();
   const { user, isAuthenticated, isGuest, updateBalance } = useAuth();
   const { coins } = useLiveMarket();
-  const [side, setSide] = useState<"buy" | "sell">("buy");
+
+  // Restore persisted state
+  const [side, setSide] = useState<"buy" | "sell">(() => {
+    const saved = localStorage.getItem(LS_KEY_SIDE);
+    return saved === "sell" ? "sell" : "buy";
+  });
   const [orderType, setOrderType] = useState<"market" | "limit">("market");
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState(() => localStorage.getItem(LS_KEY_AMOUNT) || "");
   const [limitPrice, setLimitPrice] = useState("");
   const [chartInterval, setChartInterval] = useState("60");
-  const [bottomTab, setBottomTab] = useState<"orders" | "holdings" | "history">("orders");
+  const [chartLoading, setChartLoading] = useState(false);
+  const [bottomTab, setBottomTab] = useState<"orders" | "holdings" | "history">(() => {
+    const saved = localStorage.getItem(LS_KEY_TAB);
+    if (saved === "orders" || saved === "holdings" || saved === "history") return saved;
+    return "orders";
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [highlightedPrice, setHighlightedPrice] = useState<number | null>(null);
+  const submitLockRef = useRef(false);
+
+  // Persist side, amount, tab
+  useEffect(() => { localStorage.setItem(LS_KEY_SIDE, side); }, [side]);
+  useEffect(() => { localStorage.setItem(LS_KEY_AMOUNT, amount); }, [amount]);
+  useEffect(() => { localStorage.setItem(LS_KEY_TAB, bottomTab); }, [bottomTab]);
 
   const coin = useMemo(() => coins.find((c) => c.symbol === (symbol || "BTC")) || coins[0], [symbol, coins]);
   const price = orderType === "limit" && limitPrice ? parseFloat(limitPrice) : coin.price;
-  const total = amount ? parseFloat(amount) * price : 0;
+  const parsedAmount = parseFloat(amount);
+  const total = amount && !isNaN(parsedAmount) ? parsedAmount * price : 0;
 
-  const handleTrade = useCallback(() => {
+  // Validation
+  const isInputValid = useMemo(() => {
+    if (!isAuthenticated) return false;
+    if (!amount || isNaN(parsedAmount) || parsedAmount <= 0) return false;
+    if (orderType === "limit" && (!limitPrice || isNaN(parseFloat(limitPrice)) || parseFloat(limitPrice) <= 0)) return false;
+    if (side === "buy" && (user?.balance?.USDT || 0) < total) return false;
+    if (side === "sell" && (user?.balance?.[coin.symbol] || 0) < parsedAmount) return false;
+    return true;
+  }, [isAuthenticated, amount, parsedAmount, orderType, limitPrice, side, user, coin, total]);
+
+  // Input sanitization - only allow valid number chars
+  const handleAmountChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.replace(/[^0-9.]/g, "").replace(/(\..*)\./g, "$1");
+    setAmount(val);
+  }, []);
+
+  const handleLimitPriceChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.replace(/[^0-9.]/g, "").replace(/(\..*)\./g, "$1");
+    setLimitPrice(val);
+  }, []);
+
+  // Chart interval switch with loading indicator
+  const handleIntervalChange = useCallback((value: string) => {
+    if (value === chartInterval) return;
+    setChartLoading(true);
+    setChartInterval(value);
+  }, [chartInterval]);
+
+  const handleTrade = useCallback(async () => {
+    if (submitLockRef.current) return;
     if (!isAuthenticated) {
       if (isGuest) navigate("/login");
       return;
     }
-    if (!amount || parseFloat(amount) <= 0) { toast.error("Enter a valid amount"); return; }
+    if (!amount || parsedAmount <= 0) { toast.error("Enter a valid amount"); return; }
     if (orderType === "limit" && (!limitPrice || parseFloat(limitPrice) <= 0)) { toast.error("Enter a valid limit price"); return; }
 
     const currentBalance = { ...user!.balance };
-    const amt = parseFloat(amount);
+    const amt = parsedAmount;
 
     if (side === "buy") {
       if ((currentBalance.USDT || 0) < total) { toast.error("Insufficient USDT balance"); return; }
@@ -54,10 +106,15 @@ const Trade = () => {
       currentBalance.USDT = (currentBalance.USDT || 0) + total;
     }
 
-    // Clean up zero balances
     Object.keys(currentBalance).forEach(k => {
       if (currentBalance[k] <= 0 && k !== "USDT") delete currentBalance[k];
     });
+
+    // Simulate brief processing
+    submitLockRef.current = true;
+    setIsSubmitting(true);
+
+    await new Promise(r => setTimeout(r, 600));
 
     updateBalance(currentBalance);
 
@@ -72,30 +129,37 @@ const Trade = () => {
       status: "completed",
     };
     addTransaction(user!.id, txn);
-    toast.success(`${side === "buy" ? "Bought" : "Sold"} ${amount} ${coin.symbol} for $${total.toFixed(2)}`);
+    toast.success(`Order placed successfully — ${side === "buy" ? "Bought" : "Sold"} ${amount} ${coin.symbol} for $${total.toFixed(2)}`);
     setAmount("");
+    localStorage.removeItem(LS_KEY_AMOUNT);
     if (orderType === "limit") setLimitPrice("");
-  }, [isAuthenticated, isGuest, amount, limitPrice, orderType, side, user, coin, total, price, navigate, updateBalance]);
+
+    setIsSubmitting(false);
+    submitLockRef.current = false;
+  }, [isAuthenticated, isGuest, amount, parsedAmount, limitPrice, orderType, side, user, coin, total, price, navigate, updateBalance]);
 
   const handleOrderBookClick = useCallback((clickedPrice: number) => {
     setOrderType("limit");
     setLimitPrice(formatPrice(clickedPrice));
+    setHighlightedPrice(clickedPrice);
+    setTimeout(() => setHighlightedPrice(null), 800);
   }, []);
 
-  // Fake order book
+  // Stable order book (only recalc on coin symbol change, not price ticks)
   const orderBook = useMemo(() => {
+    const basePrice = coin.price;
     const asks = Array.from({ length: 8 }, (_, i) => ({
-      price: coin.price + coin.price * 0.0001 * (i + 1),
+      price: basePrice + basePrice * 0.0001 * (i + 1),
       amount: Math.random() * 100 + 10,
     }));
     const bids = Array.from({ length: 8 }, (_, i) => ({
-      price: coin.price - coin.price * 0.0001 * (i + 1),
+      price: basePrice - basePrice * 0.0001 * (i + 1),
       amount: Math.random() * 100 + 10,
     }));
     return { asks: asks.reverse(), bids };
-  }, [coin]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [coin.symbol]);
 
-  // User holdings for this coin
   const holdings = useMemo(() => {
     if (!user) return [];
     return Object.entries(user.balance)
@@ -133,7 +197,7 @@ const Trade = () => {
           {INTERVALS.map((iv) => (
             <button
               key={iv.value}
-              onClick={() => setChartInterval(iv.value)}
+              onClick={() => handleIntervalChange(iv.value)}
               className={`px-2.5 py-1 rounded text-[10px] font-medium transition-colors ${
                 chartInterval === iv.value
                   ? "bg-primary text-primary-foreground"
@@ -146,17 +210,23 @@ const Trade = () => {
         </div>
 
         {/* Chart */}
-        <div className="bg-card rounded-xl overflow-hidden border border-border" style={{ height: 280 }}>
+        <div className="bg-card rounded-xl overflow-hidden border border-border relative" style={{ height: 280 }}>
+          {chartLoading && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-card/80">
+              <Loader2 className="h-6 w-6 text-primary animate-spin" />
+            </div>
+          )}
           <iframe
             key={chartInterval}
             src={`https://s.tradingview.com/widgetembed/?frameElementId=tv_chart&symbol=BINANCE:${coin.symbol}USDT&interval=${chartInterval}&hidesidetoolbar=1&symboledit=0&saveimage=0&toolbarbg=0B0E11&studies=[]&theme=dark&style=1&timezone=Etc/UTC&withdateranges=1&showpopupbutton=0&studies_overrides={}&overrides={}&enabled_features=[]&disabled_features=[]&showvolume=0&locale=en&utm_source=&utm_medium=widget&utm_campaign=chart`}
             className="w-full h-full border-0"
             title="TradingView Chart"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            onLoad={() => setChartLoading(false)}
           />
         </div>
 
-        {/* Trading Panel + Order Book: side-by-side on md+, stacked on mobile */}
+        {/* Trading Panel + Order Book */}
         <div className="flex flex-col md:flex-row gap-3">
           {/* Order Form */}
           <div className="bg-card rounded-xl p-4 border border-border md:flex-1">
@@ -185,13 +255,13 @@ const Trade = () => {
             {orderType === "limit" && (
               <div className="mb-2">
                 <label className="text-[10px] text-muted-foreground mb-1 block">Price (USDT)</label>
-                <Input value={limitPrice} onChange={(e) => setLimitPrice(e.target.value)} placeholder={formatPrice(coin.price)} type="number" className="bg-secondary border-border font-mono h-9 text-sm" />
+                <Input value={limitPrice} onChange={handleLimitPriceChange} placeholder={formatPrice(coin.price)} type="text" inputMode="decimal" className="bg-secondary border-border font-mono h-9 text-sm" />
               </div>
             )}
 
             <div className="mb-2">
               <label className="text-[10px] text-muted-foreground mb-1 block">Amount ({coin.symbol})</label>
-              <Input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" type="number" className="bg-secondary border-border font-mono h-9 text-sm" />
+              <Input value={amount} onChange={handleAmountChange} placeholder="0.00" type="text" inputMode="decimal" className="bg-secondary border-border font-mono h-9 text-sm" />
             </div>
 
             {/* Quick amounts */}
@@ -224,8 +294,14 @@ const Trade = () => {
               </div>
             )}
 
-            <Button onClick={handleTrade} className={`w-full font-semibold h-10 ${side === "buy" ? "bg-success hover:bg-success/90 text-success-foreground" : "bg-danger hover:bg-danger/90 text-danger-foreground"}`}>
-              {!isAuthenticated ? "Log In to Trade" : `${side === "buy" ? "Buy" : "Sell"} ${coin.symbol}`}
+            <Button
+              onClick={handleTrade}
+              disabled={isAuthenticated && (!isInputValid || isSubmitting)}
+              className={`w-full font-semibold h-10 ${side === "buy" ? "bg-success hover:bg-success/90 text-success-foreground" : "bg-danger hover:bg-danger/90 text-danger-foreground"}`}
+            >
+              {isSubmitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : !isAuthenticated ? "Log In to Trade" : `${side === "buy" ? "Buy" : "Sell"} ${coin.symbol}`}
             </Button>
           </div>
 
@@ -237,7 +313,10 @@ const Trade = () => {
               <div className="text-muted-foreground mb-1 text-right">Amount</div>
               {orderBook.asks.map((a, i) => (
                 <React.Fragment key={`ask-${i}`}>
-                  <div className="text-danger font-mono py-0.5 cursor-pointer hover:underline" onClick={() => handleOrderBookClick(a.price)}>{formatPrice(a.price)}</div>
+                  <div
+                    className={`text-danger font-mono py-0.5 cursor-pointer hover:underline transition-colors ${highlightedPrice === a.price ? "bg-danger/20 rounded" : ""}`}
+                    onClick={() => handleOrderBookClick(a.price)}
+                  >{formatPrice(a.price)}</div>
                   <div className="text-right font-mono text-muted-foreground py-0.5">{a.amount.toFixed(2)}</div>
                 </React.Fragment>
               ))}
@@ -246,7 +325,10 @@ const Trade = () => {
               </div>
               {orderBook.bids.map((b, i) => (
                 <React.Fragment key={`bid-${i}`}>
-                  <div className="text-success font-mono py-0.5 cursor-pointer hover:underline" onClick={() => handleOrderBookClick(b.price)}>{formatPrice(b.price)}</div>
+                  <div
+                    className={`text-success font-mono py-0.5 cursor-pointer hover:underline transition-colors ${highlightedPrice === b.price ? "bg-success/20 rounded" : ""}`}
+                    onClick={() => handleOrderBookClick(b.price)}
+                  >{formatPrice(b.price)}</div>
                   <div className="text-right font-mono text-muted-foreground py-0.5">{b.amount.toFixed(2)}</div>
                 </React.Fragment>
               ))}
@@ -254,7 +336,7 @@ const Trade = () => {
           </div>
         </div>
 
-        {/* Bottom Tabs: Open Orders / Holdings / History */}
+        {/* Bottom Tabs */}
         <div className="bg-card rounded-xl border border-border overflow-hidden">
           <div className="flex border-b border-border">
             {(["orders", "holdings", "history"] as const).map((t) => (

@@ -18,6 +18,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import GuestLanding from "./pages/GuestLanding";
 import NotFound from "./pages/NotFound";
+import AIChatbot from "@/components/AIChatbot";
 
 const queryClient = new QueryClient();
 

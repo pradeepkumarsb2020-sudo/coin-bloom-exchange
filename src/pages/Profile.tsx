@@ -2,11 +2,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { COINS } from "@/data/coins";
 import { getTransactions } from "@/data/transactions";
 import { useNavigate } from "react-router-dom";
-import { LogOut, Copy, Shield, ChevronRight } from "lucide-react";
+import { LogOut, Copy, Shield, ChevronRight, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import TopBar from "@/components/TopBar";
 import { useMemo } from "react";
+import { QRCodeSVG } from "qrcode.react";
 
 const Profile = () => {
   const { user, logout, isAdmin } = useAuth();
@@ -29,7 +30,7 @@ const Profile = () => {
 
   const handleLogout = () => {
     logout();
-    navigate("/guest");
+    navigate("/login");
   };
 
   return (
@@ -50,17 +51,25 @@ const Profile = () => {
           </div>
         </div>
 
-        {/* Wallet Info */}
-        <div className="glass-card rounded-xl p-4">
-          <p className="text-xs text-muted-foreground mb-1">Wallet Address</p>
-          <div className="flex items-center gap-2">
-            <p className="text-xs font-mono text-foreground truncate flex-1">{user?.walletAddress}</p>
-            <button onClick={() => { navigator.clipboard.writeText(user?.walletAddress || ""); toast.success("Copied!"); }}>
-              <Copy className="h-4 w-4 text-primary" />
-            </button>
+        {/* Wallet QR Code */}
+        {user?.walletAddress && (
+          <div className="glass-card rounded-xl p-4">
+            <p className="text-sm font-semibold text-foreground mb-3 text-center">Wallet QR Code</p>
+            <div className="flex justify-center mb-3">
+              <div className="bg-white p-3 rounded-lg">
+                <QRCodeSVG value={user.walletAddress} size={140} level="M" />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mb-1 text-center">Wallet Address</p>
+            <div className="flex items-center gap-2 justify-center">
+              <p className="text-xs font-mono text-foreground truncate max-w-[240px]">{user.walletAddress}</p>
+              <button onClick={() => { navigator.clipboard.writeText(user.walletAddress || ""); toast.success("Copied!"); }}>
+                <Copy className="h-4 w-4 text-primary" />
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2 text-center">Wallet ID: {user.walletId}</p>
           </div>
-          <p className="text-xs text-muted-foreground mt-2">Wallet ID: {user?.walletId}</p>
-        </div>
+        )}
 
         {/* Portfolio Summary */}
         <div className="glass-card rounded-xl p-4">
@@ -105,6 +114,13 @@ const Profile = () => {
               <ChevronRight className="h-4 w-4 text-muted-foreground" />
             </button>
           )}
+          <button onClick={() => navigate("/support")} className="flex items-center justify-between w-full px-4 py-3 hover:bg-secondary/50 border-b border-border">
+            <div className="flex items-center gap-3">
+              <HelpCircle className="h-5 w-5 text-primary" />
+              <span className="text-sm text-foreground">Help & Support</span>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </button>
           <button onClick={handleLogout} className="flex items-center gap-3 w-full px-4 py-3 hover:bg-secondary/50 text-danger">
             <LogOut className="h-5 w-5" />
             <span className="text-sm">Logout</span>

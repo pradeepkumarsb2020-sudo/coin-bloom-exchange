@@ -77,11 +77,6 @@ const Login = () => {
             </p>
           </div>
 
-          <div className="mt-4 p-3 rounded-lg bg-secondary/50 text-xs text-muted-foreground">
-            <p className="font-medium text-foreground mb-1">Demo Admin Login:</p>
-            <p>Email: admin@cryptox.com</p>
-            <p>Password: admin123</p>
-          </div>
         </div>
       </div>
     </div>

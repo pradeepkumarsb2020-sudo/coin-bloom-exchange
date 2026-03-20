@@ -1,9 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useAuth, User } from "@/contexts/AuthContext";
 import { COINS } from "@/data/coins";
 import { getTransactions } from "@/data/transactions";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Users, BarChart3, Activity, Search, Ban, CheckCircle } from "lucide-react";
+import { ArrowLeft, Users, BarChart3, Activity, Search, Ban, CheckCircle, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
@@ -14,8 +14,15 @@ const Admin = () => {
   const navigate = useNavigate();
   const [tab, setTab] = useState<AdminTab>("overview");
   const [search, setSearch] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const allUsers: User[] = useMemo(() => JSON.parse(localStorage.getItem("cryptox_all_users") || "[]"), []);
+  const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
+
+  const allUsers: User[] = useMemo(() => {
+    // refreshKey triggers re-read from localStorage
+    void refreshKey;
+    return JSON.parse(localStorage.getItem("cryptox_all_users") || "[]");
+  }, [refreshKey]);
 
   const allTransactions = useMemo(() => {
     return allUsers.flatMap((u) => getTransactions(u.id).map((tx) => ({ ...tx, user: u.username }))).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -41,6 +48,7 @@ const Admin = () => {
       users[idx].suspended = !users[idx].suspended;
       localStorage.setItem("cryptox_all_users", JSON.stringify(users));
       toast.success(users[idx].suspended ? "User suspended" : "User unsuspended");
+      refresh();
     }
   };
 
@@ -54,7 +62,10 @@ const Admin = () => {
       <div className="sticky top-0 z-40 bg-background/90 backdrop-blur-md border-b border-border">
         <div className="flex items-center h-14 px-4 max-w-lg mx-auto gap-3">
           <button onClick={() => navigate(-1)}><ArrowLeft className="h-5 w-5 text-foreground" /></button>
-          <span className="font-semibold text-foreground">Admin Panel</span>
+          <span className="font-semibold text-foreground flex-1">Admin Panel</span>
+          <button onClick={refresh} className="text-muted-foreground hover:text-foreground transition-colors">
+            <RefreshCw className="h-4 w-4" />
+          </button>
         </div>
       </div>
 
@@ -102,10 +113,14 @@ const Admin = () => {
                       const c = COINS.find((co) => co.symbol === sym);
                       return s + amt * (c?.price || 1);
                     }, 0).toFixed(2)}</p>
+                    <p className="text-[10px] text-muted-foreground">Joined: {new Date(u.createdAt).toLocaleDateString()}</p>
                   </div>
-                  <button onClick={() => suspendUser(u.id)} className="text-xs px-2 py-1 rounded bg-secondary text-muted-foreground hover:text-foreground">
-                    {(u as any).suspended ? <CheckCircle className="h-4 w-4 text-success" /> : <Ban className="h-4 w-4 text-danger" />}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {(u as any).suspended && <span className="text-[10px] text-danger font-medium">Suspended</span>}
+                    <button onClick={() => suspendUser(u.id)} className="text-xs px-2 py-1 rounded bg-secondary text-muted-foreground hover:text-foreground">
+                      {(u as any).suspended ? <CheckCircle className="h-4 w-4 text-success" /> : <Ban className="h-4 w-4 text-danger" />}
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

@@ -9,9 +9,14 @@ export interface User {
   role: UserRole;
   walletAddress: string;
   walletId: string;
-  balance: Record<string, number>; // Exchange balance
-  walletBalance: Record<string, number>; // Web3 Wallet balance
+  balance: Record<string, number>;
+  walletBalance: Record<string, number>;
   createdAt: string;
+}
+
+interface StoredUser extends User {
+  password: string;
+  suspended?: boolean;
 }
 
 interface AuthContextType {
@@ -40,20 +45,11 @@ const generateWalletAddress = () => {
 
 const generateId = () => crypto.randomUUID();
 
-// Demo users storage
-const DEMO_USERS: User[] = [
-  {
-    id: "admin-001",
-    username: "admin",
-    email: "admin@cryptox.com",
-    role: "admin",
-    walletAddress: "0xADMIN0000000000000000000000000000000001",
-    walletId: "wallet-admin-001",
-    balance: { USDT: 1000000, BTC: 10, ETH: 100 },
-    walletBalance: { USDT: 50000, BTC: 5, ETH: 50 },
-    createdAt: "2024-01-01T00:00:00Z",
-  },
-];
+const ADMIN_EMAIL = "admin@cryptox.com";
+const ADMIN_PASSWORD = "admin123";
+
+const getStoredUsers = (): StoredUser[] => JSON.parse(localStorage.getItem("cryptox_all_users") || "[]");
+const saveStoredUsers = (users: StoredUser[]) => localStorage.setItem("cryptox_all_users", JSON.stringify(users));
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
@@ -65,29 +61,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isAdmin = user?.role === "admin";
   const isAuthenticated = !!user && user.role !== "guest";
 
-  const login = useCallback(async (email: string, password: string): Promise<boolean> => {
-    // Check admin
-    if (email === "admin@cryptox.com" && password === "admin123") {
-      const adminUser = DEMO_USERS[0];
-      setUser(adminUser);
-      localStorage.setItem("cryptox_user", JSON.stringify(adminUser));
-      return true;
-    }
-    // Check stored users
-    const users: User[] = JSON.parse(localStorage.getItem("cryptox_all_users") || "[]");
-    const found = users.find((u) => u.email === email);
-    if (found) {
-      setUser(found);
-      localStorage.setItem("cryptox_user", JSON.stringify(found));
-      return true;
-    }
-    return false;
+  const persistUser = useCallback((u: User) => {
+    setUser(u);
+    localStorage.setItem("cryptox_user", JSON.stringify(u));
   }, []);
 
-  const signup = useCallback(async (username: string, email: string, _password: string): Promise<boolean> => {
-    const users: User[] = JSON.parse(localStorage.getItem("cryptox_all_users") || "[]");
+  const login = useCallback(async (email: string, password: string): Promise<boolean> => {
+    // Admin login
+    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
+      const adminUser: User = {
+        id: "admin-001",
+        username: "admin",
+        email: ADMIN_EMAIL,
+        role: "admin",
+        walletAddress: "0xADMIN0000000000000000000000000000000001",
+        walletId: "wallet-admin-001",
+        balance: { USDT: 1000000, BTC: 10, ETH: 100 },
+        walletBalance: { USDT: 50000, BTC: 5, ETH: 50 },
+        createdAt: "2024-01-01T00:00:00Z",
+      };
+      persistUser(adminUser);
+      return true;
+    }
+
+    // Validate stored users with password
+    const users = getStoredUsers();
+    const found = users.find((u) => u.email === email && u.password === password);
+    if (!found) return false;
+    if (found.suspended) return false;
+
+    const { password: _, suspended: __, ...safeUser } = found;
+    persistUser(safeUser);
+    return true;
+  }, [persistUser]);
+
+  const signup = useCallback(async (username: string, email: string, password: string): Promise<boolean> => {
+    const users = getStoredUsers();
     if (users.find((u) => u.email === email)) return false;
-    const newUser: User = {
+
+    const newUser: StoredUser = {
       id: generateId(),
       username,
       email,
@@ -97,13 +109,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       balance: { USDT: 10000, BTC: 0, ETH: 0 },
       walletBalance: { USDT: 0 },
       createdAt: new Date().toISOString(),
+      password,
     };
     users.push(newUser);
-    localStorage.setItem("cryptox_all_users", JSON.stringify(users));
-    setUser(newUser);
-    localStorage.setItem("cryptox_user", JSON.stringify(newUser));
+    saveStoredUsers(users);
+
+    const { password: _, ...safeUser } = newUser;
+    persistUser(safeUser);
     return true;
-  }, []);
+  }, [persistUser]);
 
   const loginAsGuest = useCallback(() => {
     const guest: User = {
@@ -117,21 +131,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       walletBalance: {},
       createdAt: new Date().toISOString(),
     };
-    setUser(guest);
-    localStorage.setItem("cryptox_user", JSON.stringify(guest));
-  }, []);
+    persistUser(guest);
+  }, [persistUser]);
 
   const logout = useCallback(() => {
     setUser(null);
     localStorage.removeItem("cryptox_user");
   }, []);
 
-  const requireAuth = useCallback(
-    (_action: string): boolean => {
-      return isAuthenticated;
-    },
-    [isAuthenticated]
-  );
+  const requireAuth = useCallback((_action: string): boolean => isAuthenticated, [isAuthenticated]);
 
   const refreshUser = useCallback(() => {
     const saved = localStorage.getItem("cryptox_user");
@@ -141,22 +149,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateBalance = useCallback((newBalance: Record<string, number>) => {
     if (!user) return;
     const updatedUser: User = { ...user, balance: { ...newBalance } };
-    localStorage.setItem("cryptox_user", JSON.stringify(updatedUser));
-    const users = JSON.parse(localStorage.getItem("cryptox_all_users") || "[]");
-    const idx = users.findIndex((u: any) => u.id === user.id);
+    persistUser(updatedUser);
+    const users = getStoredUsers();
+    const idx = users.findIndex((u) => u.id === user.id);
     if (idx >= 0) {
       users[idx] = { ...users[idx], balance: { ...newBalance } };
-      localStorage.setItem("cryptox_all_users", JSON.stringify(users));
+      saveStoredUsers(users);
     }
-    setUser(updatedUser);
-  }, [user]);
+  }, [user, persistUser]);
 
   const transferBetweenAccounts = useCallback((coin: string, amount: number, direction: "toWallet" | "toExchange"): boolean => {
     if (!user || amount <= 0) return false;
-    
+
     const srcBalance = direction === "toWallet" ? { ...user.balance } : { ...user.walletBalance };
     const dstBalance = direction === "toWallet" ? { ...user.walletBalance } : { ...user.balance };
-    
+
     if ((srcBalance[coin] || 0) < amount) return false;
 
     srcBalance[coin] = (srcBalance[coin] || 0) - amount;
@@ -165,25 +172,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const newBalance = direction === "toWallet" ? srcBalance : dstBalance;
     const newWalletBalance = direction === "toWallet" ? dstBalance : srcBalance;
 
-    const updatedUser: User = {
-      ...user,
-      balance: newBalance,
-      walletBalance: newWalletBalance,
-    };
+    const updatedUser: User = { ...user, balance: newBalance, walletBalance: newWalletBalance };
+    persistUser(updatedUser);
 
-    // Persist to localStorage
-    localStorage.setItem("cryptox_user", JSON.stringify(updatedUser));
-    const users = JSON.parse(localStorage.getItem("cryptox_all_users") || "[]");
-    const idx = users.findIndex((u: any) => u.id === user.id);
+    const users = getStoredUsers();
+    const idx = users.findIndex((u) => u.id === user.id);
     if (idx >= 0) {
       users[idx] = { ...users[idx], balance: newBalance, walletBalance: newWalletBalance };
-      localStorage.setItem("cryptox_all_users", JSON.stringify(users));
+      saveStoredUsers(users);
     }
-
-    // Set new object reference to trigger React re-render
-    setUser(updatedUser);
     return true;
-  }, [user]);
+  }, [user, persistUser]);
 
   return (
     <AuthContext.Provider

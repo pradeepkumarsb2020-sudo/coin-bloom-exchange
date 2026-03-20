@@ -17,6 +17,7 @@ import Admin from "./pages/Admin";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import GuestLanding from "./pages/GuestLanding";
+import Support from "./pages/Support";
 import NotFound from "./pages/NotFound";
 import AIChatbot from "@/components/AIChatbot";
 
@@ -42,6 +43,7 @@ const App = () => (
             <Route path="/assets" element={<ProtectedRoute><AssetsPage /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+            <Route path="/support" element={<ProtectedRoute><Support /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           <BottomNav />
